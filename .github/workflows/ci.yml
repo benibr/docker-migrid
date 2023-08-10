@@ -5,9 +5,8 @@ on:
       - opened
       - reopened
       - synchronize
-  push:
     branches:
-      - main
+      - master
 jobs:
   Docker-image-default-centos7:
     runs-on: ubuntu-latest
@@ -20,6 +19,13 @@ jobs:
         run: |
           make init
           make dockerbuild
-      #- name: Start services
-      #  run: |
-      #    make up
+      - name: Start services
+        run: |
+          docker-compose up -d
+      - name: Read logs after bootup
+        run: |
+          sleep 5
+          docker-compose logs
+      - name: Stop services
+        run: |
+          docker-compose down
