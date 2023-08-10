@@ -6,6 +6,7 @@ docker-migrid
     :target: https://docker-migrid.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 |docsbadge|
+
 .. |cibadge| image:: https://github.com/benibr/docker-migrid/actions/workflows/ci.yml/badge.svg
     :target: https://github.com/benibr/docker-migrid/actions/workflows/ci.yml
     :alt: Continuous Integration
