@@ -13,6 +13,7 @@ docker-migrid
 |cibadge|
 
 A containerized version of the middleware `Minimum Intrusion Grid (MiG) <https://sourceforge.net/projects/migrid/>`_ system.
+Code also available on Github in the `migrid-sync <https://github.com/ucphhpc/migrid-sync>`_ repo.
 
 -----------------------------
 Documentation/Getting Started
