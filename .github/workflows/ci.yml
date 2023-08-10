@@ -7,6 +7,12 @@ on:
       - synchronize
     branches:
       - master
+    paths-ignore:
+      - '**/README.md'
+      - '1.gocd.yml'
+      - 'doc/'
+      - '.gitignore'
+
 jobs:
   Docker-image-default-centos7:
     runs-on: ubuntu-latest
