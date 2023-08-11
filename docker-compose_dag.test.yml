@@ -26,7 +26,7 @@ services:
 
   migrid:
     container_name: migrid
-    image: ucphhpc/migrid:$BUILD_TYPE
+    image: ucphhpc/migrid
     build:
       context: ./
       dockerfile: Dockerfile
@@ -34,7 +34,6 @@ services:
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
-        BUILD_TYPE: ${BUILD_TYPE}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -196,7 +195,7 @@ services:
   # Multiple containers with individual daemons not provided by base migrid
   migrid-openid:
     container_name: migrid-openid
-    image: ucphhpc/migrid:$BUILD_TYPE
+    image: ucphhpc/migrid
     build:
       context: ./
       dockerfile: Dockerfile
@@ -204,7 +203,6 @@ services:
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
-        BUILD_TYPE: ${BUILD_TYPE}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -356,7 +354,7 @@ services:
 
   migrid-sftp:
     container_name: migrid-sftp
-    image: ucphhpc/migrid:$BUILD_TYPE
+    image: ucphhpc/migrid
     build:
       context: ./
       dockerfile: Dockerfile
@@ -364,7 +362,6 @@ services:
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
-        BUILD_TYPE: ${BUILD_TYPE}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -517,7 +514,7 @@ services:
 
   migrid-ftps:
     container_name: migrid-ftps
-    image: ucphhpc/migrid:$BUILD_TYPE
+    image: ucphhpc/migrid
     build:
       context: ./
       dockerfile: Dockerfile
@@ -525,7 +522,6 @@ services:
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
-        BUILD_TYPE: ${BUILD_TYPE}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -678,7 +674,7 @@ services:
 
   migrid-webdavs:
     container_name: migrid-webdavs
-    image: ucphhpc/migrid:$BUILD_TYPE
+    image: ucphhpc/migrid
     build:
       context: ./
       dockerfile: Dockerfile
@@ -686,7 +682,6 @@ services:
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
-        BUILD_TYPE: ${BUILD_TYPE}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
