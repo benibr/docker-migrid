@@ -49,7 +49,6 @@ services:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         BUILD_TYPE: ${BUILD_TYPE}
-        BUILD_TARGET: ${BUILD_TARGET}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -229,7 +228,6 @@ services:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         BUILD_TYPE: ${BUILD_TYPE}
-        BUILD_TARGET: ${BUILD_TARGET}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -389,7 +387,6 @@ services:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         BUILD_TYPE: ${BUILD_TYPE}
-        BUILD_TARGET: ${BUILD_TARGET}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -550,7 +547,6 @@ services:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         BUILD_TYPE: ${BUILD_TYPE}
-        BUILD_TARGET: ${BUILD_TARGET}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
@@ -711,7 +707,6 @@ services:
         UID: ${UID:-1000}
         GID: ${GID:-1000}
         BUILD_TYPE: ${BUILD_TYPE}
-        BUILD_TARGET: ${BUILD_TARGET}
         DOMAIN: ${DOMAIN}
         WILDCARD_DOMAIN: ${WILDCARD_DOMAIN}
         PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
