@@ -869,7 +869,7 @@ services:
       - "448:448"
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./nginx-proxy-defaults_gdp.conf:/etc/nginx/conf.d/migrid.conf
+      - ./nginx-proxy-development_gdp.conf:/etc/nginx/conf.d/migrid.conf
       - ./nginx-harden-https.conf:/etc/nginx/harden-https.conf
       - ./certs/MiG/*.gdp.test/server.crt:/etc/nginx/certs/www.gdp.test.crt
       - ./certs/MiG/*.gdp.test/server.crt:/etc/nginx/certs/cert.gdp.test.crt
