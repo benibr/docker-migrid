@@ -428,15 +428,7 @@ RUN yum install -y \
     # NOTE: extra dependencies required for paramiko pip install
     redhat-rpm-config pkg-config rust cargo libffi-devel \
     # NOTE: only install default paramiko if upgrade not requested
-    && [ "${UPGRADE_PARAMIKO}" = True ] || yum install -y python-paramiko \
-    && yum clean all \
-    && rm -fr /var/cache/yum
-
-# install prebuilt mod_openid
-COPY --from=build_mod_openid /root/rpmbuild/ /tmp/rpms/
-RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
-      rpm -ivh /tmp/rpms/**/*.rpm; fi
-RUN rm -rf /tmp/rpms/
+    && [ "${UPGRADE_PARAMIKO}" = True ] || yum install -y python-paramiko
 
 RUN if [ "${WITH_PY3}" = True ]; then \
       echo "install py3 deps" \
@@ -477,26 +469,18 @@ RUN if [ "${ENABLE_GDP}" = "True" ]; then \
       python-xvfbwrapper \
       wkhtmltopdf \
       xorg-x11-server-Xvfb \
-      && yum clean all \
-      && rm -fr /var/cache/yum \
       && pip2 install pdfkit; \
       if [ "${WITH_PY3}" = True ]; then \
          echo "install py3 GDP deps" && \
          # NOTE: not available in yum here - use pip
 	 #yum update -y && \
 	 #yum install -y python3-xvfbwrapper \
-         #&& yum clean all \
-         #&& rm -fr /var/cache/yum \
 	 pip3 install xvfbwrapper \
 	 && pip3 install pdfkit; \
       fi; \
     else \
       echo "no GDP deps"; \
     fi;
-
-# Apache OpenID (provided by epel for centos7)
-RUN yum install -y mod_auth_openid
-
 
 # Upgrade mod_auth_openidc from upstream github packages if requested - mainly needed for rhel/centos7
 # https://stackoverflow.com/questions/68742362/how-to-install-mod-auth-openidc-on-rhel-7
@@ -517,6 +501,15 @@ RUN python2 -m pip install -U 'pip<21'
 RUN if [ "${WITH_PY3}" = "True" ]; then \
       python3 -m pip install -U 'pip<22'; \
     fi;
+
+# Apache OpenID (provided by epel for centos7)
+RUN yum install -y mod_auth_openid
+
+# install prebuilt mod_openid
+COPY --from=build_mod_openid /root/rpmbuild/ /tmp/rpms/
+RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
+      rpm -ivh /tmp/rpms/**/*.rpm; fi
+RUN rm -rf /tmp/rpms/
 
 RUN yum clean all \
       && rm -fr /var/cache/yum
