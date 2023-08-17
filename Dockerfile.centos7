@@ -307,14 +307,12 @@ WORKDIR /tmp
 # Centos image default yum configs prevent docs installation
 # https://superuser.com/questions/784451/centos-on-docker-how-to-install-doc-files
 RUN sed -i '/nodocs/d' /etc/yum.conf
+RUN sed -i 's/enabled=1/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
+RUN echo "metadata_expire=90m" >> /etc/yum.conf
 
-RUN yum update -y \
-    && yum install -y epel-release \
-    && yum clean all \
-    && rm -fr /var/cache/yum
+RUN yum install -y epel-release
 
-RUN yum update -y \
-    && yum install -y \
+RUN yum install -y \
     gcc \
     make \
     pam-devel \
@@ -374,7 +372,6 @@ RUN yum update -y \
 
 RUN if [ "${WITH_PY3}" = True ]; then \
       echo "install py3 deps" \
-      && yum update -y \
       && yum install -y \
       python3-pip \
       python3-devel \
@@ -400,8 +397,6 @@ RUN if [ "${WITH_PY3}" = True ]; then \
       #python3-typing-extensions \
       # NOTE: only install default paramiko if upgrade not requested
       && [ "${UPGRADE_PARAMIKO}" = True ] || yum install -y python36-paramiko \
-      && yum clean all \
-      && rm -fr /var/cache/yum; \
     else \
       echo "no py3 deps"; \
     fi;
@@ -410,7 +405,6 @@ RUN if [ "${WITH_PY3}" = True ]; then \
 # TODO: does postfix "just work" and should it perhaps always be installed?
 RUN if [ "${ENABLE_GDP}" = "True" ]; then \
       echo "install GDP deps" \
-      && yum update -y \
       && yum install -y \
       postfix \
       python-xvfbwrapper \
@@ -434,16 +428,13 @@ RUN if [ "${ENABLE_GDP}" = "True" ]; then \
     fi;
 
 # Apache OpenID (provided by epel for centos7)
-RUN yum install -y mod_auth_openid \
-      && yum clean all \
-      && rm -fr /var/cache/yum
+RUN yum install -y mod_auth_openid
 
 # Build mod_auth_openid from source if requested - mainly for rocky8 or self-signed hack
 RUN echo "BUILD_MOD_AUTH_OPENID: $BUILD_MOD_AUTH_OPENID"
 RUN echo "ENABLE_SELF_SIGNED_CERTS: $ENABLE_SELF_SIGNED_CERTS"
 RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
 	echo "building mod_auth_openid from centos7 source rpm" \
-	&& yum update -y \
 	&& yum install -y gcc-c++ \
 		rpm-build \
 		mock \
@@ -462,8 +453,6 @@ RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "Tru
 		expat-devel \
 		tidy-devel \
 		libuuid-devel \
-                && yum clean all \
-                && rm -fr /var/cache/yum \
         #&& rpm -e --nodeps libopkele \
 	&& echo "build libopkele from centos7 source rpm" \
         # NOTE: avoid hard-coded version using yumdownloader from yum-utils
@@ -498,10 +487,8 @@ RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "Tru
         && yum erase -y 'mod_auth_openid-*' \
         && yum install -y /root/rpmbuild/RPMS/*/mod_auth_openid-*.rpm \
 	&& echo "cleaning up after rebuilding and installing mod_auth_openid rpm" \
-        && rm -rf /root/rpmbuild \
-        && yum clean all \
-        && rm -fr /var/cache/yum; \
-    fi;
+        && rm -rf /root/rpmbuild; \
+  fi;
 
 
 # Upgrade mod_auth_openidc from upstream github packages if requested - mainly needed for rhel/centos7
@@ -512,13 +499,20 @@ RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "Tru
 RUN echo "UPGRADE_MOD_AUTH_OPENIDC: $UPGRADE_MOD_AUTH_OPENIDC"
 RUN if [ "$UPGRADE_MOD_AUTH_OPENIDC" = "True" ]; then \
 	echo "upgrading mod_auth_openidc from upstream centos7 rpm" \
-	&& yum update -y \
 	&& yum install -y jansson-devel \
 		https://github.com/OpenIDC/mod_auth_openidc/releases/download/v2.4.0/cjose-0.6.1.5-2.el7.x86_64.rpm \
-		https://github.com/OpenIDC/mod_auth_openidc/releases/download/v2.4.13.1/mod_auth_openidc-2.4.13.1-1.el7.x86_64.rpm \
-                && yum clean all \
-                && rm -fr /var/cache/yum; \
+		https://github.com/OpenIDC/mod_auth_openidc/releases/download/v2.4.13.1/mod_auth_openidc-2.4.13.1-1.el7.x86_64.rpm ; \
     fi;
+
+# Upgrade pip2, required by cryptography - pip-21+ dropped python2 support, however
+RUN python2 -m pip install -U 'pip<21'
+# Upgrade pip3, required by cryptography - pip-22+ dropped py3.6 support, however
+RUN if [ "${WITH_PY3}" = "True" ]; then \
+      python3 -m pip install -U 'pip<22'; \
+    fi;
+
+RUN yum clean all \
+      && rm -fr /var/cache/yum
 
 
 # Setup container default language to make sure UTF8 is available in wsgi app.
@@ -629,13 +623,6 @@ RUN ln -s MiG/${WILDCARD_DOMAIN}/server.crt server.crt \
                [ -L "$domain" ] || ln -s MiG/${WILDCARD_DOMAIN} $domain; \
        done
 
-# Upgrade pip2, required by cryptography - pip-21+ dropped python2 support, however
-RUN python2 -m pip install -U 'pip<21'
-# Upgrade pip3, required by cryptography - pip-22+ dropped py3.6 support, however
-RUN if [ "${WITH_PY3}" = "True" ]; then \
-      python3 -m pip install -U 'pip<22'; \
-    fi;
-
 # NOTE: make certs as mig user
 WORKDIR $MIG_ROOT
 USER $USER
@@ -658,13 +645,6 @@ ARG UPGRADE_PARAMIKO
 
 # NOTE: Switch back to root for system-wide pip install here
 USER root
-
-# Upgrade pip2, required by cryptography - pip-21+ dropped python2 support, however
-RUN python2 -m pip install -U 'pip<21'
-# Upgrade pip3, required by cryptography - pip-22+ dropped py3.6 support, however
-RUN if [ "${WITH_PY3}" = "True" ]; then \
-      python3 -m pip install -U 'pip<22'; \
-    fi;
 
 # NOTE: use jsonrpclib and pysendfile from yum for py2 here but for py3 from pip
 RUN if [ "${WITH_PY3}" = "True" ]; then \
@@ -941,6 +921,11 @@ RUN echo "PYTHONPATH=${MIG_ROOT}" >> ~/.bash_profile \
 #RUN echo "PATH=$HOME/.local/bin:${PATH}" >> ~/.bash_profile \
 #    && echo "export PATH" >> ~/.bash_profile
 
+WORKDIR $MIG_ROOT/mig/install
+
+RUN echo "Designated jupyter services: ${JUPYTER_SERVICES}"
+RUN echo "Designated jupyter services descriptions: ${JUPYTER_SERVICES_DESC}"
+
 COPY --from=setup_security ${MIG_ROOT} ${MIG_ROOT}
 COPY --from=setup_security ${CERT_DIR} ${CERT_DIR}
 COPY --from=download_mig ${MIG_ROOT} ${MIG_ROOT}
@@ -948,11 +933,6 @@ COPY --from=mig_dependencies /usr/local/lib /usr/local/lib
 COPY --from=mig_dependencies /usr/lib/python2.7 /usr/lib/python2.7
 COPY --from=mig_dependencies /usr/lib64/python2.7 /usr/lib64/python2.7
 COPY --from=mig_dependencies /usr/local/bin /usr/local/bin
-
-WORKDIR $MIG_ROOT/mig/install
-
-RUN echo "Designated jupyter services: ${JUPYTER_SERVICES}"
-RUN echo "Designated jupyter services descriptions: ${JUPYTER_SERVICES_DESC}"
 
 RUN python2 ./generateconfs.py --source=. \
     --destination=generated-confs \
