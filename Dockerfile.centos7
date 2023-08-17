@@ -920,11 +920,8 @@ ARG EXTRA_USERPAGE_STYLES
 ARG GDP_EMAIL_NOTIFY
 
 ENV PYTHONPATH=${MIG_ROOT}
-# Ensure that the $USER sets it during session start
-RUN echo "PYTHONPATH=${MIG_ROOT}" >> ~/.bash_profile \
-    && echo "export PYTHONPATH" >> ~/.bash_profile
-#RUN echo "PATH=$HOME/.local/bin:${PATH}" >> ~/.bash_profile \
-#    && echo "export PATH" >> ~/.bash_profile
+
+USER $USER
 
 WORKDIR $MIG_ROOT/mig/install
 
@@ -937,6 +934,13 @@ COPY --from=mig_dependencies /usr/local/lib /usr/local/lib
 COPY --from=mig_dependencies /usr/lib/python2.7 /usr/lib/python2.7
 COPY --from=mig_dependencies /usr/lib64/python2.7 /usr/lib64/python2.7
 COPY --from=mig_dependencies /usr/local/bin /usr/local/bin
+
+# Ensure that the $USER sets it during session start
+RUN echo "PYTHONPATH=${MIG_ROOT}" >> ~/.bash_profile \
+    && echo "export PYTHONPATH" >> ~/.bash_profile
+#RUN echo "PATH=$HOME/.local/bin:${PATH}" >> ~/.bash_profile \
+#    && echo "export PATH" >> ~/.bash_profile
+
 
 RUN python2 ./generateconfs.py --source=. \
     --destination=generated-confs \
@@ -1209,7 +1213,8 @@ FROM --platform=linux/$ARCH scratch as final_image
 
 # MiG environment
 ENV USER=mig GROUP=mig WEB_DIR=/etc/httpd LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
-ENV MIG_ROOT=/home/$USER CERT_DIR=$WEB_DIR/MiG-certificates PYTHONPATH=${MIG_ROOT}
+ENV MIG_ROOT=/home/$USER CERT_DIR=$WEB_DIR/MiG-certificates 
+ENV PYTHONPATH=${MIG_ROOT}
 
 COPY --from=setup_container_boot /app /app
 COPY --from=setup_mig_configs / /
