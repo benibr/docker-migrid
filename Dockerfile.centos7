@@ -1206,12 +1206,12 @@ RUN if [ "${ENABLE_GDP}" = "True" ]; then \
     fi;
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH setup_mig_configs as setup_container_boot 
+FROM --platform=linux/$ARCH centos:7 as setup_container_boot
 
 # Reap defuncted/orphaned processes
 ARG TINI_VERSION=v0.18.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /app/tini
+RUN chmod +x /app/tini
 
 ADD docker-entry.sh /app/docker-entry.sh
 ADD migrid-httpd.env /app/migrid-httpd.env
@@ -1227,7 +1227,8 @@ FROM --platform=linux/$ARCH scratch as final_image
 ENV USER=mig GROUP=mig WEB_DIR=/etc/httpd LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 ENV MIG_ROOT=/home/$USER CERT_DIR=$WEB_DIR/MiG-certificates PYTHONPATH=${MIG_ROOT}
 
-COPY --from=setup_container_boot / /
+COPY --from=setup_container_boot /app /app
+COPY --from=setup_mig_configs / /
 
 USER root
 WORKDIR /app
@@ -1235,5 +1236,5 @@ WORKDIR /app
 # EXPOSE is not important but keep in sync with active ports for the record
 EXPOSE 80 443 444 445 446 447 448 449 2222 4443 8021 22222
 
-ENTRYPOINT ["/tini", "--"]
+ENTRYPOINT ["/app/tini", "--"]
 CMD ["bash", "/app/docker-entry.sh"]
