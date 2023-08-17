@@ -650,7 +650,7 @@ RUN mkdir -p MiG-certificates \
 
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH setup_security as mig_dependencies
+FROM --platform=linux/$ARCH base as mig_dependencies
 ARG DOMAIN
 ARG WITH_PY3
 ARG MODERN_WSGIDAV
@@ -659,7 +659,12 @@ ARG UPGRADE_PARAMIKO
 # NOTE: Switch back to root for system-wide pip install here
 USER root
 
-# Prepare py2 dependencies no longer in yum or just outdated there
+# Upgrade pip2, required by cryptography - pip-21+ dropped python2 support, however
+RUN python2 -m pip install -U 'pip<21'
+# Upgrade pip3, required by cryptography - pip-22+ dropped py3.6 support, however
+RUN if [ "${WITH_PY3}" = "True" ]; then \
+      python3 -m pip install -U 'pip<22'; \
+    fi;
 
 # NOTE: use jsonrpclib and pysendfile from yum for py2 here but for py3 from pip
 RUN if [ "${WITH_PY3}" = "True" ]; then \
@@ -779,7 +784,7 @@ RUN if [ "${WITH_PY3}" = "True" ]; then \
     fi;
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH mig_dependencies as download_mig
+FROM --platform=linux/$ARCH base as download_mig
 ARG DOMAIN
 ARG MIG_SVN_REPO
 ARG MIG_SVN_REV
@@ -935,6 +940,14 @@ RUN echo "PYTHONPATH=${MIG_ROOT}" >> ~/.bash_profile \
     && echo "export PYTHONPATH" >> ~/.bash_profile
 #RUN echo "PATH=$HOME/.local/bin:${PATH}" >> ~/.bash_profile \
 #    && echo "export PATH" >> ~/.bash_profile
+
+COPY --from=setup_security ${MIG_ROOT} ${MIG_ROOT}
+COPY --from=setup_security ${CERT_DIR} ${CERT_DIR}
+COPY --from=download_mig ${MIG_ROOT} ${MIG_ROOT}
+COPY --from=mig_dependencies /usr/local/lib /usr/local/lib
+COPY --from=mig_dependencies /usr/lib/python2.7 /usr/lib/python2.7
+COPY --from=mig_dependencies /usr/lib64/python2.7 /usr/lib64/python2.7
+COPY --from=mig_dependencies /usr/local/bin /usr/local/bin
 
 WORKDIR $MIG_ROOT/mig/install
 
