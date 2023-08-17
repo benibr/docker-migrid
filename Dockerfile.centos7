@@ -289,7 +289,82 @@ RUN echo "Enable python3 support: $WITH_PY3"
 #RUN echo "Enable git checkout: $WITH_GIT"
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH vars as base
+FROM --platform=linux/$ARCH vars as yum_prepared
+# Centos image default yum configs prevent docs installation
+# https://superuser.com/questions/784451/centos-on-docker-how-to-install-doc-files
+RUN sed -i '/nodocs/d' /etc/yum.conf
+RUN sed -i 's/enabled=1/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
+RUN echo "metadata_expire=90m" >> /etc/yum.conf
+RUN yum install -y epel-release
+
+
+#------------------------- next stage -----------------------------#
+FROM --platform=linux/$ARCH yum_prepared as build_mod_openid
+
+ARG BUILD_MOD_AUTH_OPENID
+ARG ENABLE_SELF_SIGNED_CERTS
+
+# Build mod_auth_openid from source if requested - mainly for rocky8 or self-signed hack
+RUN echo "BUILD_MOD_AUTH_OPENID: $BUILD_MOD_AUTH_OPENID"
+RUN echo "ENABLE_SELF_SIGNED_CERTS: $ENABLE_SELF_SIGNED_CERTS"
+RUN mkdir /root/rpmbuild/ && touch /root/rpmbuild/.keep
+RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
+	echo "building mod_auth_openid from centos7 source rpm" \
+	&& yum install -y gcc-c++ \
+		rpm-build \
+		mock \
+		make \
+		autoconf \
+		automake \
+		httpd-devel \
+		libcurl-devel \
+		libtidy-devel \
+		pcre-devel \
+		openssl-devel \
+		libtool \
+		sqlite-devel \
+		boost-devel \
+		libxslt \
+		expat-devel \
+		tidy-devel \
+		libuuid-devel \
+        #&& rpm -e --nodeps libopkele \
+	&& echo "build libopkele from centos7 source rpm" \
+        # NOTE: avoid hard-coded version using yumdownloader from yum-utils
+        && yumdownloader -y --source --resolve --destdir /root/rpmbuild/SRPMS libopkele \
+        && rpm -ivh /root/rpmbuild/SRPMS/libopkele-*.src.rpm \
+        ## Optionally pull more recent gcc4.9 patch from Debian on rocky8 (local copy in patches)
+        #&& wget -O /root/rpmbuild/SOURCES/fix-ftbfs-gcc4.9.diff https://sources.debian.org/data/main/libo/libopkele/2.0.4%2Bgit20140305.9651b55-4/debian/patches/fix-ftbfs-gcc4.9.diff \
+        ## Pull the more recent required OpenSSL-1.1 patch from Debian on rocky8 (local copy in patches)
+        #&& wget -O /root/rpmbuild/SOURCES/fix-openssl-1.1.0.diff https://sources.debian.org/data/main/libo/libopkele/2.0.4%2Bgit20140305.9651b55-4/debian/patches/fix-openssl-1.1.0.diff \
+        ## Pull patch from own repo to rpmbuild with Debian patches on rocky8 (local copy in patches)
+        #&& wget -O /tmp/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff https://github.com/ucphhpc/docker-migrid/raw/master/patches/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff \
+        #&& cd /root && patch -p 0 < /tmp/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff && cd - \
+        # TODO: is this security crippling needed or a matter of proper apache proxying?
+        # Disable Apache OpenID ssl-certificate verification if self-signed
+        # (recompile libopkele with --disable-ssl-verify-host --disable-ssl-verify-peer)
+        && if [ "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
+	      echo "Re-building libopkele with ssl verification disabled"; \
+              sed -i 's/^%configure$/%configure --disable-ssl-verify-host --disable-ssl-verify-peer/g' /root/rpmbuild/SPECS/libopkele.spec; fi \
+        && rpmbuild -v -ba /root/rpmbuild/SPECS/libopkele.spec \
+        && rm -f /root/rpmbuild/RPMS/*/libopkele-*debug*.rpm \
+        && yum erase -y 'libopkele-*' \
+        && yum install -y /root/rpmbuild/RPMS/*/libopkele-*.rpm \
+	&& echo "install mod_auth_openid centos7 source rpm" \
+        #&& rpm -e --nodeps mod_auth_openid \
+        # NOTE: avoid hard-coded version using yumdownloader from yum-utils
+        && yumdownloader -y --source --resolve --destdir /root/rpmbuild/SRPMS mod_auth_openid \
+        && rpm -ivh /root/rpmbuild/SRPMS/mod_auth_openid-*.src.rpm \
+	&& echo "build mod_auth_openid centos7 source rpm" \
+        && rpmbuild -v -ba /root/rpmbuild/SPECS/mod_auth_openid.spec \
+        && rm -f /root/rpmbuild/RPMS/*/mod_auth_openid-*debug*.rpm \
+	&& echo "install the rebuilt mod_auth_openid rpm" \
+        && yum erase -y 'mod_auth_openid-*' \
+        && yum install -y /root/rpmbuild/RPMS/*/mod_auth_openid-*.rpm; \
+  fi;
+
+#------------------------- next stage -----------------------------#
+FROM --platform=linux/$ARCH yum_prepared as base
 ARG DOMAIN
 ARG WILDCARD_DOMAIN
 ARG ENABLE_GDP
@@ -303,14 +378,6 @@ ARG UID
 ARG GID
 
 WORKDIR /tmp
-
-# Centos image default yum configs prevent docs installation
-# https://superuser.com/questions/784451/centos-on-docker-how-to-install-doc-files
-RUN sed -i '/nodocs/d' /etc/yum.conf
-RUN sed -i 's/enabled=1/enabled=0/' /etc/yum/pluginconf.d/fastestmirror.conf
-RUN echo "metadata_expire=90m" >> /etc/yum.conf
-
-RUN yum install -y epel-release
 
 RUN yum install -y \
     PyYAML \
@@ -365,6 +432,11 @@ RUN yum install -y \
     && yum clean all \
     && rm -fr /var/cache/yum
 
+# install prebuilt mod_openid
+COPY --from=build_mod_openid /root/rpmbuild/ /tmp/rpms/
+RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
+      rpm -ivh /tmp/rpms/**/*.rpm; fi
+RUN rm -rf /tmp/rpms/
 
 RUN if [ "${WITH_PY3}" = True ]; then \
       echo "install py3 deps" \
@@ -424,66 +496,6 @@ RUN if [ "${ENABLE_GDP}" = "True" ]; then \
 
 # Apache OpenID (provided by epel for centos7)
 RUN yum install -y mod_auth_openid
-
-# Build mod_auth_openid from source if requested - mainly for rocky8 or self-signed hack
-RUN echo "BUILD_MOD_AUTH_OPENID: $BUILD_MOD_AUTH_OPENID"
-RUN echo "ENABLE_SELF_SIGNED_CERTS: $ENABLE_SELF_SIGNED_CERTS"
-RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
-	echo "building mod_auth_openid from centos7 source rpm" \
-	&& yum install -y gcc-c++ \
-		rpm-build \
-		mock \
-		make \
-		autoconf \
-		automake \
-		httpd-devel \
-		libcurl-devel \
-		libtidy-devel \
-		pcre-devel \
-		openssl-devel \
-		libtool \
-		sqlite-devel \
-		boost-devel \
-		libxslt \
-		expat-devel \
-		tidy-devel \
-		libuuid-devel \
-        #&& rpm -e --nodeps libopkele \
-	&& echo "build libopkele from centos7 source rpm" \
-        # NOTE: avoid hard-coded version using yumdownloader from yum-utils
-        && yumdownloader -y --source --resolve --destdir /root/rpmbuild/SRPMS libopkele \
-        && rpm -ivh /root/rpmbuild/SRPMS/libopkele-*.src.rpm \
-        ## Optionally pull more recent gcc4.9 patch from Debian on rocky8 (local copy in patches)
-        #&& wget -O /root/rpmbuild/SOURCES/fix-ftbfs-gcc4.9.diff https://sources.debian.org/data/main/libo/libopkele/2.0.4%2Bgit20140305.9651b55-4/debian/patches/fix-ftbfs-gcc4.9.diff \
-        ## Pull the more recent required OpenSSL-1.1 patch from Debian on rocky8 (local copy in patches)
-        #&& wget -O /root/rpmbuild/SOURCES/fix-openssl-1.1.0.diff https://sources.debian.org/data/main/libo/libopkele/2.0.4%2Bgit20140305.9651b55-4/debian/patches/fix-openssl-1.1.0.diff \
-        ## Pull patch from own repo to rpmbuild with Debian patches on rocky8 (local copy in patches)
-        #&& wget -O /tmp/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff https://github.com/ucphhpc/docker-migrid/raw/master/patches/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff \
-        #&& cd /root && patch -p 0 < /tmp/rpmbuild-opkele-with-gcc4.9-openssl-1.1.0-patches.diff && cd - \
-        # TODO: is this security crippling needed or a matter of proper apache proxying?
-        # Disable Apache OpenID ssl-certificate verification if self-signed
-        # (recompile libopkele with --disable-ssl-verify-host --disable-ssl-verify-peer)
-        && if [ "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
-	      echo "Re-building libopkele with ssl verification disabled"; \
-              sed -i 's/^%configure$/%configure --disable-ssl-verify-host --disable-ssl-verify-peer/g' /root/rpmbuild/SPECS/libopkele.spec; fi \
-        && rpmbuild -v -ba /root/rpmbuild/SPECS/libopkele.spec \
-        && rm -f /root/rpmbuild/RPMS/*/libopkele-*debug*.rpm \
-        && yum erase -y 'libopkele-*' \
-        && yum install -y /root/rpmbuild/RPMS/*/libopkele-*.rpm \
-	&& echo "install mod_auth_openid centos7 source rpm" \
-        #&& rpm -e --nodeps mod_auth_openid \
-        # NOTE: avoid hard-coded version using yumdownloader from yum-utils
-        && yumdownloader -y --source --resolve --destdir /root/rpmbuild/SRPMS mod_auth_openid \
-        && rpm -ivh /root/rpmbuild/SRPMS/mod_auth_openid-*.src.rpm \
-	&& echo "build mod_auth_openid centos7 source rpm" \
-        && rpmbuild -v -ba /root/rpmbuild/SPECS/mod_auth_openid.spec \
-        && rm -f /root/rpmbuild/RPMS/*/mod_auth_openid-*debug*.rpm \
-	&& echo "install the rebuilt mod_auth_openid rpm" \
-        && yum erase -y 'mod_auth_openid-*' \
-        && yum install -y /root/rpmbuild/RPMS/*/mod_auth_openid-*.rpm \
-	&& echo "cleaning up after rebuilding and installing mod_auth_openid rpm" \
-        && rm -rf /root/rpmbuild; \
-  fi;
 
 
 # Upgrade mod_auth_openidc from upstream github packages if requested - mainly needed for rhel/centos7
