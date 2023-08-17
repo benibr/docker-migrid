@@ -1,0 +1,15 @@
+.git/
+1.gocd.yml
+Dockerfile*
+Makefile
+README.rst
+*.env
+certs/
+doc/
+docker-compose.*
+httpd/
+log/
+mig/
+nginx*
+state/
+tests/

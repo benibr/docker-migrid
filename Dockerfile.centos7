@@ -794,7 +794,8 @@ RUN if [ "$WITH_GIT" = "True" ]; then \
 	echo "migrid version: ${MIG_SVN_REPO} trunk ${MIG_SVN_REV}" > ./active-migrid-version.txt; \
     fi;
 
-ADD --chown=$USER:$GROUP mig $MIG_ROOT/
+# fixme: is this necessary? This is overmounted in the end anyway
+#ADD --chown=$USER:$GROUP mig $MIG_ROOT/
 
 # NOTE: we manually need to enable modern grid_webdavs.py here for now.
 #       Replace any existing symlink with one to the 3.x script.
