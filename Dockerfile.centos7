@@ -313,57 +313,53 @@ RUN echo "metadata_expire=90m" >> /etc/yum.conf
 RUN yum install -y epel-release
 
 RUN yum install -y \
-    gcc \
-    make \
-    pam-devel \
-    nss-devel \
-    openssl-devel \
-    httpd \
-    htop \
-    openssh \
+    PyYAML \
+    ca-certificates \
+    cracklib-devel \
     cronie \
     crontabs \
-    nano \
-    mod_ssl \
-    mod_wsgi \
-    mod_proxy \
+    fail2ban \
+    gcc \
+    git \
+    htop \
+    httpd \
+    initscripts \
+    ipset \
+    lftp \
+    lsof \
+    make \
     mod_auth_openid \
     mod_auth_openidc \
-    tzdata \
-    initscripts \
-    svn \
-    git \
-    vim \
+    mod_proxy \
+    mod_ssl \
+    mod_wsgi \
+    nano \
     net-tools \
-    telnet \
-    ca-certificates \
-    mercurial \
-    openssh-server \
+    nss-devel \
+    openssh \
     openssh-clients \
-    rsyslog \
-    lsof \
-    python-pip \
+    openssh-server \
+    openssl-devel \
+    pam-devel \
+    pyOpenSSL \
+    pysendfile \
     python-devel \
     python-enchant \
-    python-jsonrpclib \
-    python-requests \
-    python2-psutil \
-    #python-email-validator \
     python-future \
+    python-jsonrpclib \
+    python-pip \
+    python-requests \
     python2-cffi \
-    pysendfile \
-    pyOpenSSL \
-    PyYAML \
-    # NOTE: generally install cracklib from pip as yum/dnf only has py2 version
-    #cracklib-python \
-    cracklib-devel \
+    python2-psutil \
+    rsync \
+    rsyslog \
+    svn \
+    telnet \
+    tzdata \
+    vim \
+    wget \
     # NOTE: extra dependencies required for paramiko pip install
     redhat-rpm-config pkg-config rust cargo libffi-devel \
-    lftp \
-    rsync \
-    fail2ban \
-    ipset \
-    wget \
     # NOTE: only install default paramiko if upgrade not requested
     && [ "${UPGRADE_PARAMIKO}" = True ] || yum install -y python-paramiko \
     && yum clean all \
@@ -402,7 +398,6 @@ RUN if [ "${WITH_PY3}" = True ]; then \
     fi;
 
 # Install GDP dependencies
-# TODO: does postfix "just work" and should it perhaps always be installed?
 RUN if [ "${ENABLE_GDP}" = "True" ]; then \
       echo "install GDP deps" \
       && yum install -y \
@@ -794,9 +789,6 @@ RUN if [ "$WITH_GIT" = "True" ]; then \
 	echo "migrid version: ${MIG_SVN_REPO} trunk ${MIG_SVN_REV}" > ./active-migrid-version.txt; \
     fi;
 
-# fixme: is this necessary? This is overmounted in the end anyway
-#ADD --chown=$USER:$GROUP mig $MIG_ROOT/
-
 # NOTE: we manually need to enable modern grid_webdavs.py here for now.
 #       Replace any existing symlink with one to the 3.x script.
 RUN if [ "${MODERN_WSGIDAV}" = "True" ]; then \
@@ -929,7 +921,6 @@ RUN echo "Designated jupyter services descriptions: ${JUPYTER_SERVICES_DESC}"
 
 COPY --from=setup_security ${MIG_ROOT} ${MIG_ROOT}
 COPY --from=setup_security ${CERT_DIR} ${CERT_DIR}
-COPY --from=download_mig ${MIG_ROOT} ${MIG_ROOT}
 COPY --from=mig_dependencies /usr/local/lib /usr/local/lib
 COPY --from=mig_dependencies /usr/lib/python2.7 /usr/lib/python2.7
 COPY --from=mig_dependencies /usr/lib64/python2.7 /usr/lib64/python2.7
