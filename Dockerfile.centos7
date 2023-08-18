@@ -299,21 +299,19 @@ RUN yum install -y epel-release
 
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH yum_prepared as build_mod_openid
+FROM --platform=linux/$ARCH yum_prepared as build_base
 
-ARG BUILD_MOD_AUTH_OPENID
-ARG ENABLE_SELF_SIGNED_CERTS
-
-# Build mod_auth_openid from source if requested - mainly for rocky8 or self-signed hack
-RUN echo "BUILD_MOD_AUTH_OPENID: $BUILD_MOD_AUTH_OPENID"
-RUN echo "ENABLE_SELF_SIGNED_CERTS: $ENABLE_SELF_SIGNED_CERTS"
-RUN mkdir /root/rpmbuild/ && touch /root/rpmbuild/.keep
-RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
-	echo "building mod_auth_openid from centos7 source rpm" \
-	&& yum install -y gcc-c++ \
+RUN yum install -y \
+		gcc-c++ \
+		cracklib-devel \
+		python-devel \
+		pam-devel \
+		gcc \
+		make \
+		openssl-devel \
+		nss-devel \
 		rpm-build \
 		mock \
-		make \
 		autoconf \
 		automake \
 		httpd-devel \
@@ -327,7 +325,20 @@ RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "Tru
 		libxslt \
 		expat-devel \
 		tidy-devel \
-		libuuid-devel \
+		libuuid-devel
+
+#------------------------- next stage -----------------------------#
+FROM --platform=linux/$ARCH build_base as build_mod_openid
+
+ARG BUILD_MOD_AUTH_OPENID
+ARG ENABLE_SELF_SIGNED_CERTS
+
+# Build mod_auth_openid from source if requested - mainly for rocky8 or self-signed hack
+RUN echo "BUILD_MOD_AUTH_OPENID: $BUILD_MOD_AUTH_OPENID"
+RUN echo "ENABLE_SELF_SIGNED_CERTS: $ENABLE_SELF_SIGNED_CERTS"
+RUN mkdir /root/rpmbuild/ && touch /root/rpmbuild/.keep
+RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "True" ]; then \
+	echo "building mod_auth_openid from centos7 source rpm" \
         #&& rpm -e --nodeps libopkele \
 	&& echo "build libopkele from centos7 source rpm" \
         # NOTE: avoid hard-coded version using yumdownloader from yum-utils
@@ -364,29 +375,14 @@ RUN if [ "$BUILD_MOD_AUTH_OPENID" = "True" -o "$ENABLE_SELF_SIGNED_CERTS" = "Tru
   fi;
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH yum_prepared as base
-ARG DOMAIN
-ARG WILDCARD_DOMAIN
-ARG ENABLE_GDP
-ARG ENABLE_SELF_SIGNED_CERTS
-ARG BUILD_MOD_AUTH_OPENID
-ARG UPGRADE_MOD_AUTH_OPENIDC
-ARG UPGRADE_PARAMIKO
-ARG WITH_PY3
-ARG PREFER_PYTHON3
-ARG UID
-ARG GID
-
-WORKDIR /tmp
+FROM --platform=linux/$ARCH yum_prepared as yum_base
 
 RUN yum install -y \
     PyYAML \
     ca-certificates \
-    cracklib-devel \
     cronie \
     crontabs \
     fail2ban \
-    gcc \
     git \
     htop \
     httpd \
@@ -394,7 +390,6 @@ RUN yum install -y \
     ipset \
     lftp \
     lsof \
-    make \
     mod_auth_openid \
     mod_auth_openidc \
     mod_proxy \
@@ -402,15 +397,11 @@ RUN yum install -y \
     mod_wsgi \
     nano \
     net-tools \
-    nss-devel \
     openssh \
     openssh-clients \
     openssh-server \
-    openssl-devel \
-    pam-devel \
     pyOpenSSL \
     pysendfile \
-    python-devel \
     python-enchant \
     python-future \
     python-jsonrpclib \
@@ -429,6 +420,23 @@ RUN yum install -y \
     redhat-rpm-config pkg-config rust cargo libffi-devel \
     # NOTE: only install default paramiko if upgrade not requested
     && [ "${UPGRADE_PARAMIKO}" = True ] || yum install -y python-paramiko
+
+
+#------------------------- next stage -----------------------------#
+FROM --platform=linux/$ARCH yum_base as mig_base
+ARG DOMAIN
+ARG WILDCARD_DOMAIN
+ARG ENABLE_GDP
+ARG ENABLE_SELF_SIGNED_CERTS
+ARG BUILD_MOD_AUTH_OPENID
+ARG UPGRADE_MOD_AUTH_OPENIDC
+ARG UPGRADE_PARAMIKO
+ARG WITH_PY3
+ARG PREFER_PYTHON3
+ARG UID
+ARG GID
+
+WORKDIR /tmp
 
 RUN if [ "${WITH_PY3}" = True ]; then \
       echo "install py3 deps" \
@@ -546,7 +554,7 @@ RUN mkdir -p $CERT_DIR/MiG/${WILDCARD_DOMAIN} \
 
 #------------------------- next stage -----------------------------#
 # Certs and keys
-FROM --platform=linux/$ARCH base as setup_security
+FROM --platform=linux/$ARCH yum_base as setup_security
 ARG DOMAIN
 ARG WILDCARD_DOMAIN
 ARG PUBLIC_DOMAIN
@@ -637,7 +645,7 @@ RUN mkdir -p MiG-certificates \
 
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH base as mig_dependencies
+FROM --platform=linux/$ARCH build_base as mig_dependencies
 ARG DOMAIN
 ARG WITH_PY3
 ARG MODERN_WSGIDAV
@@ -764,7 +772,7 @@ RUN if [ "${WITH_PY3}" = "True" ]; then \
     fi;
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH base as download_mig
+FROM --platform=linux/$ARCH yum_base as download_mig
 ARG DOMAIN
 ARG MIG_SVN_REPO
 ARG MIG_SVN_REV
@@ -803,7 +811,7 @@ RUN if [ "${MODERN_WSGIDAV}" = "True" ]; then \
 
 
 #------------------------- next stage -----------------------------#
-FROM --platform=linux/$ARCH download_mig as install_mig
+FROM --platform=linux/$ARCH mig_base as install_mig
 ARG DOMAIN
 ARG PUBLIC_DOMAIN
 ARG MIGCERT_DOMAIN
@@ -923,6 +931,8 @@ RUN echo "Designated jupyter services descriptions: ${JUPYTER_SERVICES_DESC}"
 
 COPY --from=setup_security ${MIG_ROOT} ${MIG_ROOT}
 COPY --from=setup_security ${CERT_DIR} ${CERT_DIR}
+COPY --from=setup_security ${CERT_DIR} ${CERT_DIR}
+COPY --from=download_mig ${MIG_ROOT} ${MIG_ROOT}
 COPY --from=mig_dependencies /usr/local/lib /usr/local/lib
 COPY --from=mig_dependencies /usr/lib/python2.7 /usr/lib/python2.7
 COPY --from=mig_dependencies /usr/lib64/python2.7 /usr/lib64/python2.7
