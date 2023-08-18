@@ -3,7 +3,11 @@
 Dockerfile*
 Makefile
 README.rst
-*.env
+.env
+advanced*
+defaults*
+development*
+production*
 certs/
 doc/
 docker-compose.*
