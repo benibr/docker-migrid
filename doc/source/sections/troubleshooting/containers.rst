@@ -39,3 +39,14 @@ DevDNS can't get IPs of containers
 
 This error occurs when DevDNS gets a notification of a container in another network.
 You can set the network in which DevDNS works with the environment variable `NETWORK=docker-migrid_default` for example.
+
+./state directory is missing most of the content
+------------------------------------------------
+
+If the `state` directory contains only `vgrid_files_readonly` and `vgrid_files_writeable` then probably the directory was not properly cleaned before.
+Ensure that the folder is completely empty and restart migrid containers to create a default structure again::
+
+    docker-compose down
+    docker volume rm docker-migrid_state
+    rm -rf state/* state/.*
+    docker-compose up -d
