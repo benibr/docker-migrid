@@ -40,7 +40,7 @@ services:
   #       to the exposed high ones.
 
   migrid:
-    container_name: migrid
+    #container_name: migrid
     image: ucphhpc/migrid${CONTAINER_TAG}
     extends:
       file: docker-compose_shared.yml
