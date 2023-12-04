@@ -913,6 +913,7 @@ RUN mkdir -p ${MIG_ROOT}/.local/bin; \
       ln -s /usr/bin/python2 ${MIG_ROOT}/.local/bin/python; \
     fi;
 
+#RUN python -m trace --ignore-dir=/usr --trace ./generateconfs.py --source=. \
 RUN ./generateconfs.py --source=. \
     --destination=generated-confs \
     --base_fqdn=$DOMAIN \
@@ -982,7 +983,6 @@ RUN ./generateconfs.py --source=. \
     --enable_vhost_certs=True --enable_verify_certs=${ENABLE_VERIFY_CERTS} \
     --enable_jupyter=${ENABLE_JUPYTER} --enable_migadmin=${ENABLE_MIGADMIN} \
     --enable_gdp=${ENABLE_GDP} --gdp_email_notify=${GDP_EMAIL_NOTIFY} \
-    --gdp_id_scramble=${GDP_ID_SCRAMBLE} --gdp_path_scramble=${GDP_PATH_SCRAMBLE} \
     --password_policy=${MIG_PASSWORD_POLICY} \
     --jupyter_services=${JUPYTER_SERVICES} \
     --jupyter_services_desc="${JUPYTER_SERVICES_DESC}" \
@@ -1012,6 +1012,7 @@ RUN ./generateconfs.py --source=. \
     --extra_userpage_scripts="${EXTRA_USERPAGE_SCRIPTS}" \
     --extra_userpage_styles="${EXTRA_USERPAGE_STYLES}" \
     --apache_worker_procs=256 --wsgi_procs=25
+    #--gdp_id_scramble=${GDP_ID_SCRAMBLE} --gdp_path_scramble=${GDP_PATH_SCRAMBLE} \
 
 RUN cp generated-confs/MiGserver.conf $MIG_ROOT/mig/server/ \
     && cp generated-confs/static-skin.css $MIG_ROOT/mig/images/ \
